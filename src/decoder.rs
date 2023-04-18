@@ -20,10 +20,8 @@ pub enum RawTerm {
     String(String),
     List(Vec<RawTerm>),
     Binary(Vec<u8>),
-    SmallBigI(i64),
-    SmallBigU(u64),
-    LargeBigU(u64),
-    LargeBigI(i64),
+    BigU(u64),
+    BigI(i64),
     Reference { node: Box<RawTerm>, id: u32, creation: u8 },
     NewReference { node: Box<RawTerm>, id: Vec<u32>, creation: u8 },
     NewerReference { node: Box<RawTerm>, id: Vec<u32>, creation: u32 },
@@ -139,7 +137,36 @@ impl Decoder {
                 self.reader.pos += len;
                 Some(RawTerm::String(String::from_utf8(buf).unwrap()))
             }
-            constants::SMALL_BIG_EXT | constants::LARGE_BIG_EXT => todo!("SMALL_BIG_EXT | LARGE_BIG_EXT"),
+            constants::SMALL_BIG_EXT | constants::LARGE_BIG_EXT => {
+                let len = match tag {
+                    constants::SMALL_BIG_EXT => self.reader.read_u8().unwrap() as usize,
+                    constants::LARGE_BIG_EXT => self.reader.read_u32(true).unwrap() as usize,
+                    _ => 0
+                };
+                let sign = self.reader.read_u8().unwrap();
+                match sign {
+                    0 => {
+                        let mut value = 0u64;
+                        let mut b = 1u64;
+                        for _ in 0..len {
+                            value += self.reader.read_u8().unwrap() as u64 * b;
+                            b <<= 8;
+                        }
+                        Some(RawTerm::BigU(value))
+                    }
+                    1 => {
+                        let mut value = 0i64;
+                        let mut b = 1i64;
+                        for _ in 0..len {
+                            value += self.reader.read_u8().unwrap() as i64 * b;
+                            b <<= 8;
+                        }
+
+                        Some(RawTerm::BigI(-value))
+                    }
+                    _ => panic!("Invalid sign")
+                }
+            }
             constants::DEPRECATED_REFERENCE_EXT => todo!("DEPRECATED_REFERENCE_EXT"),
             constants::NEW_REFERENCE_EXT | constants::NEWER_REFERENCE_EXT => todo!("NEW_REFERENCE_EXT | NEWER_REFERENCE_EXT"),
             constants::REMOVED_FUN_EXT => todo!("REMOVED_FUN_EXT"),

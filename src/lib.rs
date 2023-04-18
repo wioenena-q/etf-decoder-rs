@@ -151,4 +151,20 @@ mod tests {
             assert_eq!(s, "Hello World!");
         }
     }
+
+    #[test]
+    fn any_big_ext() {
+        let mut d = decoder::Decoder::from(vec![131, 110, 8, 0, 239, 205, 171, 144, 120, 86, 52, 18]);
+        if let RawTerm::BigI(b) = d.decode().unwrap() {
+            assert_eq!(b, 0x1234567890abcdef);
+        }
+    }
+
+    #[test]
+    fn any_negative_big_ext() {
+        let mut d = decoder::Decoder::from(vec![131, 110, 8, 1, 239, 205, 171, 144, 120, 86, 52, 18]);
+        if let RawTerm::BigI(b) = d.decode().unwrap() {
+            assert_eq!(b, -0x1234567890abcdef);
+        }
+    }
 }
